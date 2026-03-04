@@ -520,12 +520,13 @@ class ProblemMaker(QMainWindow):
         self.id_edit = QLineEdit()
         self.id_edit.setPlaceholderText("输入题目编号")
         self.id_edit.setMaximumWidth(80)
-        self.id_edit.textChanged.connect(self.onTitleChanged)
+        self.id_edit.setReadOnly(True)  # 设置为只读
+        # self.id_edit.textChanged.connect(self.onTitleChanged)  # 注释掉这行
 
         title_label = QLabel("题目标题:")
         self.title_edit = QLineEdit()
-        self.title_edit.setPlaceholderText("输入题目标题")
-        self.title_edit.textChanged.connect(self.onTitleChanged)
+        self.title_edit.setReadOnly(True)  # 设置为只读
+        # self.title_edit.textChanged.connect(self.onTitleChanged)  # 注释掉这行
 
         title_layout.addWidget(id_label)
         title_layout.addWidget(self.id_edit)
@@ -616,6 +617,7 @@ class ProblemMaker(QMainWindow):
         solution_label = QLabel("正解代码:")
         self.solution_edit = QTextEdit()
         self.solution_edit.setPlaceholderText("输入题目的正解代码...")
+
         self.solution_edit.setFont(QFont("Consolas", 10))
         self.solution_edit.textChanged.connect(self.onSolutionChanged)
 
@@ -987,7 +989,15 @@ class ProblemMaker(QMainWindow):
             self.output_edit.setText(self.current_problem.output_description)
             self.sample_input_edit.setText(self.current_problem.sample_input)
             self.sample_output_edit.setText(self.current_problem.sample_output)
+            if self.current_problem.solution_code=="":
+                self.current_problem.solution_code="""#include<bits/stdc++.h>
+using namespace std;
+int main()
+{
+	return 0;
+}"""
             self.solution_edit.setText(self.current_problem.solution_code)
+
 
             # 设置生成器路径
             if self.current_problem.generator_path:
@@ -1110,6 +1120,9 @@ class ProblemMaker(QMainWindow):
 
     def newProblem(self):
         """新建题目"""
+        # 弹出对话框让用户输入题目名称
+        from PyQt5.QtWidgets import QInputDialog
+
         # 生成新的编号
         max_id = 0
         for problem in self.problems:
@@ -1120,7 +1133,20 @@ class ProblemMaker(QMainWindow):
                 pass
 
         new_id = str(max_id + 1)
-        new_title = self.title_edit.text().strip() or "新题目"
+
+        # 弹出输入对话框让用户输入题目名称
+        new_title, ok = QInputDialog.getText(
+            self, "新建题目",
+            "请输入题目名称（创建后将不可修改）:",
+            QLineEdit.Normal,
+            "新题目"
+        )
+
+        if not ok or not new_title.strip():
+            # 用户取消或输入为空，不创建题目
+            return
+
+        new_title = new_title.strip()
 
         # 创建题目目录
         dir_name = f"{new_id}_{new_title}"
@@ -1151,7 +1177,6 @@ class ProblemMaker(QMainWindow):
         self.loadProblem(len(self.problems) - 1)
 
         self.status_label.setText(f"已创建新题目: {problem.full_title}")
-
     def deleteProblem(self):
         """删除当前题目"""
         if self.current_problem_index >= 0:
@@ -1237,17 +1262,43 @@ class ProblemMaker(QMainWindow):
                     data_files.append(file_name)
 
             # 保存生成器文件路径（相对路径）
-            generator_relative_path = ""
+            generator_relative_path = "datamaker.py"
             if self.current_problem.generator_path and os.path.exists(self.current_problem.generator_path):
-                # 如果生成器文件在当前题目目录内，保存相对路径
-                if os.path.commonpath([path, self.current_problem.generator_path]) == path:
-                    generator_relative_path = os.path.relpath(self.current_problem.generator_path, path)
-                else:
-                    # 如果不在目录内，复制一份到题目目录
+                try:
+                    # 确保两个路径都是绝对路径
+                    abs_problem_path = os.path.abspath(path)
+                    abs_generator_path = os.path.abspath(self.current_problem.generator_path)
+
+                    # 判断生成器文件是否在当前题目目录内
+                    if os.path.commonpath([abs_problem_path]) == os.path.commonpath(
+                            [abs_generator_path, abs_problem_path]):
+                        # 生成器文件在目录内，保存相对路径
+                        generator_relative_path = os.path.relpath(abs_generator_path, abs_problem_path)
+                    else:
+                        # 如果不在目录内，复制一份到题目目录
+                        new_path = os.path.join(path, os.path.basename(self.current_problem.generator_path))
+                        # 如果目标文件已存在，先询问是否覆盖
+                        if os.path.exists(new_path):
+                            # 可以选择添加时间戳或数字后缀
+                            base, ext = os.path.splitext(os.path.basename(self.current_problem.generator_path))
+                            counter = 1
+                            while os.path.exists(new_path):
+                                new_filename = f"{base}_{counter}{ext}"
+                                new_path = os.path.join(path, new_filename)
+                                counter += 1
+
+                        shutil.copy2(self.current_problem.generator_path, new_path)
+                        generator_relative_path = os.path.basename(new_path)
+                        self.current_problem.generator_path = new_path  # 更新路径
+
+                except ValueError as e:
+                    # 处理路径比较错误
+                    print(f"路径比较错误: {e}")
+                    # 如果路径比较失败，直接复制文件
                     new_path = os.path.join(path, os.path.basename(self.current_problem.generator_path))
                     shutil.copy2(self.current_problem.generator_path, new_path)
-                    generator_relative_path = os.path.basename(self.current_problem.generator_path)
-                    self.current_problem.generator_path = new_path  # 更新路径
+                    generator_relative_path = os.path.basename(new_path)
+                    self.current_problem.generator_path = new_path
 
             # 保存题面文件
             problem_data = {
