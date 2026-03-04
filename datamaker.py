@@ -4,8 +4,13 @@
 import sys
 import random
 
-
+data_scale=[10,10,100,500,1000,5000]
 def make_datamaker(data_id):
+    if data_id<len(data_scale):
+        n=data_scale[data_id]
+    else:
+        n=data_scale[-1]
+
 
 
 

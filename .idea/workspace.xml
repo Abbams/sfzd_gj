@@ -4,12 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d9705580-c81a-4e47-8068-c3b7eb441af3" name="更改" comment="初次提交，不能修改题目标题">
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/sfzd_gj.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/sfzd_gj.iml" afterDir="false" />
+    <list default="true" id="d9705580-c81a-4e47-8068-c3b7eb441af3" name="更改" comment="添加数据生成参数，可以批量生成不同规模的数据点，修改数据运行方式。">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/datamaker.py" beforeDir="false" afterPath="$PROJECT_DIR$/datamaker.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -89,7 +86,14 @@
       <option name="project" value="LOCAL" />
       <updated>1772541114226</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="添加数据生成参数，可以批量生成不同规模的数据点，修改数据运行方式。">
+      <created>1772632451543</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1772632451543</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -111,6 +115,7 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="初次提交，不能修改题目标题" />
-    <option name="LAST_COMMIT_MESSAGE" value="初次提交，不能修改题目标题" />
+    <MESSAGE value="添加数据生成参数，可以批量生成不同规模的数据点，修改数据运行方式。" />
+    <option name="LAST_COMMIT_MESSAGE" value="添加数据生成参数，可以批量生成不同规模的数据点，修改数据运行方式。" />
   </component>
 </project>

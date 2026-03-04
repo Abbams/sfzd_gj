@@ -373,6 +373,76 @@ class ProblemMaker(QMainWindow):
         # 显示题目路径
         self.path_label.setText(f"题目路径: {self.problems_base_path}")
 
+    def packDataFiles(self):
+        """
+        将所有 .in 和 .out 文件打包成zip文件
+        zip文件名与题目名称相同，保存在题目目录的同级目录
+        """
+        if not self.current_problem:
+            QMessageBox.warning(self, "警告", "请先选择一个题目")
+            return
+
+        # 获取所有 .in 和 .out 文件
+        data_files = []
+        for file_name in os.listdir(self.current_problem.problem_path):
+            if file_name.endswith('.in') or file_name.endswith('.out'):
+                file_path = os.path.join(self.current_problem.problem_path, file_name)
+                data_files.append(file_path)
+
+        if not data_files:
+            QMessageBox.warning(self, "警告", "没有找到数据文件")
+            return
+
+        # 创建zip文件名（与题目名称相同）
+        zip_filename = f"{self.current_problem.full_title}.zip"
+        zip_path = os.path.join(self.problems_base_path, zip_filename)
+
+        # 如果zip文件已存在，询问是否覆盖
+        if os.path.exists(zip_path):
+            reply = QMessageBox.question(
+                self, "文件已存在",
+                f"文件 {zip_filename} 已存在，是否覆盖？",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            if reply != QMessageBox.Yes:
+                return
+
+        try:
+            import zipfile
+
+            # 创建zip文件
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for file_path in data_files:
+                    # 获取相对路径（只保留文件名）
+                    arcname = os.path.basename(file_path)
+                    zipf.write(file_path, arcname)
+
+            self.output_text.append("=" * 50)
+            self.output_text.append(f"打包成功！")
+            self.output_text.append(f"文件保存为: {zip_path}")
+            self.output_text.append(f"共打包 {len(data_files)} 个文件")
+
+            self.status_label.setText(f"打包成功: {zip_filename}")
+
+            # 询问是否打开所在文件夹
+            reply = QMessageBox.question(
+                self, "打包完成",
+                f"文件已成功打包到:\n{zip_path}\n\n是否打开所在文件夹？",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            if reply == QMessageBox.Yes:
+                # 打开文件夹并选中文件
+                if sys.platform == 'win32':
+                    os.startfile(os.path.dirname(zip_path))
+                else:
+                    import subprocess
+                    subprocess.Popen(['open' if sys.platform == 'darwin' else 'xdg-open',
+                                      os.path.dirname(zip_path)])
+
+        except Exception as e:
+            QMessageBox.critical(self, "打包失败", f"打包过程中发生错误:\n{str(e)}")
+            self.output_text.append(f"【错误】打包失败: {str(e)}")
+
     def createMenuBar(self):
         """创建菜单栏"""
         menubar = self.menuBar()
@@ -643,10 +713,14 @@ class ProblemMaker(QMainWindow):
 
         clear_output_btn = QPushButton("清除输出文件")
         clear_output_btn.clicked.connect(self.clearOutputFiles)
+        # 添加打包按钮
+        pack_btn = QPushButton("打包数据文件")
+        pack_btn.clicked.connect(self.packDataFiles)
 
         test_buttons.addWidget(test_selected_btn)
         test_buttons.addWidget(test_all_btn)
         test_buttons.addWidget(clear_output_btn)
+        test_buttons.addWidget(pack_btn)
         test_buttons.addStretch()
 
         data_layout.addWidget(data_list_label)
