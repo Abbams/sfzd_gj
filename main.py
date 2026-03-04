@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import (
     QMenuBar, QMenu, QAction, QPushButton, QLabel, QTextEdit,
     QListWidget, QListWidgetItem, QMessageBox, QFileDialog,
     QSplitter, QGroupBox, QLineEdit, QTabWidget,
-    QComboBox, QProgressDialog
+    QComboBox, QProgressDialog, QSpinBox
 )
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QFont
@@ -190,10 +190,11 @@ class DataGenerator(QThread):
     error_signal = pyqtSignal(str)
     finished_signal = pyqtSignal()
 
-    def __init__(self, generator_file, count=10):
+    def __init__(self, generator_file, count=10, data_scale=1):
         super().__init__()
         self.generator_file = generator_file  # 文件路径
         self.count = count
+        self.data_scale = data_scale  # 数据规模参数
         self.output_dir = ""
 
     def run(self):
@@ -218,11 +219,13 @@ class DataGenerator(QThread):
                     encoding='utf-8'
                 )
 
-                # 传入当前编号作为参数
-                stdout, stderr = process.communicate(input=str(i), timeout=5)
+                # 传入当前编号和数据规模作为参数
+                # 格式：编号 数据规模
+                input_data = f"{i} {self.data_scale}"
+                stdout, stderr = process.communicate(input=input_data, timeout=10)
 
                 if stderr:
-                    self.error_signal.emit(f"生成第{i}个数据时出错:\n{stderr}")
+                    self.error_signal.emit(f"生成第{i}个数据时出现错误:\n{stderr}")
                 else:
                     # 保存生成的输入数据
                     input_file = os.path.join(self.output_dir, f"{i}.in")
@@ -239,6 +242,61 @@ class DataGenerator(QThread):
 
             # 更新进度
             self.progress_signal.emit(int(i / self.count * 100))
+
+
+class DataTester(QThread):
+    """数据测试线程 - 使用编译好的C++程序运行所有输入文件"""
+    progress_signal = pyqtSignal(int)
+    message_signal = pyqtSignal(str)
+    error_signal = pyqtSignal(str)
+    finished_signal = pyqtSignal()
+
+    def __init__(self, exe_path, input_files, output_dir):
+        super().__init__()
+        self.exe_path = exe_path  # 编译好的exe文件路径
+        self.input_files = input_files  # 输入文件列表
+        self.output_dir = output_dir  # 输出目录
+
+    def run(self):
+        total = len(self.input_files)
+        for i, in_file in enumerate(self.input_files):
+            try:
+                # 读取输入文件
+                with open(in_file, 'r', encoding='utf-8') as f:
+                    input_data = f.read()
+
+                # 运行exe文件
+                process = subprocess.Popen(
+                    [self.exe_path],
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    encoding='utf-8'
+                )
+
+                stdout, stderr = process.communicate(input=input_data, timeout=30)
+
+                if stderr:
+                    self.error_signal.emit(f"运行 {os.path.basename(in_file)} 时出错:\n{stderr}")
+                else:
+                    # 保存输出文件
+                    out_file = os.path.join(self.output_dir, os.path.basename(in_file).replace('.in', '.out'))
+                    with open(out_file, 'w', encoding='utf-8') as f:
+                        f.write(stdout)
+
+                    self.message_signal.emit(f"已生成 {os.path.basename(out_file)}")
+
+            except subprocess.TimeoutExpired:
+                process.kill()
+                self.error_signal.emit(f"运行 {os.path.basename(in_file)} 时超时")
+            except Exception as e:
+                self.error_signal.emit(f"运行 {os.path.basename(in_file)} 时出错: {str(e)}")
+
+            # 更新进度
+            self.progress_signal.emit(int((i + 1) / total * 100))
+
+        self.finished_signal.emit()
 
 
 class Problem:
@@ -258,6 +316,7 @@ class Problem:
         self.data_files = []  # 数据文件列表
         self.problem_path = ""  # 题目保存路径
         self.language = "c++"  # 默认语言
+        self.compiled_exe_path = ""  # 编译好的exe文件路径
 
 
 class ProblemMaker(QMainWindow):
@@ -345,6 +404,14 @@ class ProblemMaker(QMainWindow):
         # 运行菜单
         run_menu = menubar.addMenu("运行(&R)")
 
+        # 编译正解
+        compile_action = QAction("编译正解(&C)", self)
+        compile_action.setShortcut("F8")
+        compile_action.triggered.connect(self.compileSolution)
+        run_menu.addAction(compile_action)
+
+        run_menu.addSeparator()
+
         # 运行正解
         run_solution_action = QAction("运行正解(&S)", self)
         run_solution_action.setShortcut("F9")
@@ -360,7 +427,7 @@ class ProblemMaker(QMainWindow):
         # 批量测试
         batch_test_action = QAction("批量测试(&T)", self)
         batch_test_action.setShortcut("F11")
-        batch_test_action.triggered.connect(self.batchTest)
+        batch_test_action.triggered.connect(self.batchTestWithExe)
         run_menu.addAction(batch_test_action)
 
         # 帮助菜单
@@ -436,7 +503,7 @@ class ProblemMaker(QMainWindow):
         input_layout.addWidget(self.input_edit)
 
         tab_widget.addTab(input_widget, "输入")
-        # description_widget.addAction(input_widget)
+
         # 输出说明选项卡
         output_widget = QWidget()
         output_layout = QVBoxLayout(output_widget)
@@ -484,8 +551,11 @@ class ProblemMaker(QMainWindow):
 
         # 代码运行按钮
         solution_buttons = QHBoxLayout()
+        compile_btn = QPushButton("编译正解")
+        compile_btn.clicked.connect(self.compileSolution)
         run_solution_btn = QPushButton("运行正解")
         run_solution_btn.clicked.connect(self.runSolution)
+        solution_buttons.addWidget(compile_btn)
         solution_buttons.addWidget(run_solution_btn)
         solution_buttons.addStretch()
 
@@ -495,7 +565,7 @@ class ProblemMaker(QMainWindow):
 
         tab_widget.addTab(solution_widget, "正解代码")
 
-        # 数据生成器选项卡（修改为文件选择）
+        # 数据生成器选项卡
         generator_widget = QWidget()
         generator_layout = QVBoxLayout(generator_widget)
 
@@ -513,8 +583,21 @@ class ProblemMaker(QMainWindow):
         generator_file_layout.addWidget(self.generator_path_edit)
         generator_file_layout.addWidget(select_generator_btn)
 
+        # 数据规模设置
+        scale_layout = QHBoxLayout()
+        scale_label = QLabel("数据规模(1-10):")
+        self.data_scale_spin = QSpinBox()
+        self.data_scale_spin.setMinimum(1)
+        self.data_scale_spin.setMaximum(10)
+        self.data_scale_spin.setValue(1)
+        self.data_scale_spin.setToolTip("设置数据规模，生成器可以根据此参数生成不同规模的数据")
+
+        scale_layout.addWidget(scale_label)
+        scale_layout.addWidget(self.data_scale_spin)
+        scale_layout.addStretch()
+
         # 提示信息
-        tip_label = QLabel("提示：请使用外部编辑器编写生成器代码，软件将运行选中的文件")
+        tip_label = QLabel("提示：生成器将从标准输入接收两个参数：数据编号(1,2,3...) 和 数据规模(1-10)")
         tip_label.setStyleSheet("color: gray; font-size: 8pt;")
 
         # 生成器控制
@@ -534,6 +617,7 @@ class ProblemMaker(QMainWindow):
 
         generator_layout.addWidget(generator_label)
         generator_layout.addLayout(generator_file_layout)
+        generator_layout.addLayout(scale_layout)
         generator_layout.addWidget(tip_label)
         generator_layout.addLayout(generator_control)
 
@@ -551,11 +635,11 @@ class ProblemMaker(QMainWindow):
         # 测试按钮
         test_buttons = QHBoxLayout()
 
-        test_selected_btn = QPushButton("测试选中")
-        test_selected_btn.clicked.connect(self.testSelectedData)
+        test_selected_btn = QPushButton("测试选中(运行exe)")
+        test_selected_btn.clicked.connect(self.testSelectedWithExe)
 
-        test_all_btn = QPushButton("测试所有")
-        test_all_btn.clicked.connect(self.batchTest)
+        test_all_btn = QPushButton("测试所有(运行exe)")
+        test_all_btn.clicked.connect(self.batchTestWithExe)
 
         clear_output_btn = QPushButton("清除输出文件")
         clear_output_btn.clicked.connect(self.clearOutputFiles)
@@ -680,6 +764,53 @@ class ProblemMaker(QMainWindow):
             self.generator_path_edit.setText(file_path)
             self.current_problem.generator_path = file_path
 
+    def compileSolution(self):
+        """编译正解代码"""
+        if not self.current_problem:
+            QMessageBox.warning(self, "警告", "请先选择一个题目")
+            return
+
+        if not self.current_problem.solution_code:
+            QMessageBox.warning(self, "警告", "没有正解代码")
+            return
+
+        if self.current_problem.language != 'cpp':
+            QMessageBox.warning(self, "警告", "只有C++代码可以编译成exe文件")
+            return
+
+        self.output_text.append("=" * 50)
+        self.output_text.append("开始编译C++代码...")
+
+        # 创建临时cpp文件
+        cpp_file = os.path.join(self.current_problem.problem_path, "solution.cpp")
+        exe_file = os.path.join(self.current_problem.problem_path, "solution.exe")
+
+        try:
+            # 保存代码到文件
+            with open(cpp_file, 'w', encoding='utf-8') as f:
+                f.write(self.current_problem.solution_code)
+
+            # 编译
+            compile_process = subprocess.run(
+                ['g++', cpp_file, '-o', exe_file],
+                capture_output=True,
+                text=True,
+                encoding='utf-8'
+            )
+
+            if compile_process.returncode != 0:
+                self.output_text.append(f"编译错误:\n{compile_process.stderr}")
+                QMessageBox.warning(self, "编译失败", f"编译错误:\n{compile_process.stderr}")
+                return
+
+            self.current_problem.compiled_exe_path = exe_file
+            self.output_text.append(f"编译成功！生成文件: solution.exe")
+            self.status_label.setText("编译成功")
+
+        except Exception as e:
+            self.output_text.append(f"编译过程出错: {str(e)}")
+            QMessageBox.critical(self, "编译错误", f"编译过程出错:\n{str(e)}")
+
     def loadAllProblems(self):
         """从固定路径加载所有题目"""
         self.problems.clear()
@@ -704,6 +835,11 @@ class ProblemMaker(QMainWindow):
                     # 创建题目对象
                     problem = Problem(problem_title, problem_id)
                     problem.problem_path = item_path
+
+                    # 检查是否有编译好的exe文件
+                    exe_path = os.path.join(item_path, "solution.exe")
+                    if os.path.exists(exe_path):
+                        problem.compiled_exe_path = exe_path
 
                     # 加载题目内容
                     self.loadProblemContent(problem)
@@ -742,7 +878,7 @@ class ProblemMaker(QMainWindow):
                 problem.sample_input = problem_data.get("sample_input", "")
                 problem.sample_output = problem_data.get("sample_output", "")
                 problem.solution_code = problem_data.get("solution_code", "")
-                problem.language = problem_data.get("language", "python")
+                problem.language = problem_data.get("language", "cpp")
 
                 # 加载生成器路径
                 generator_rel_path = problem_data.get("generator_path", "")
@@ -787,7 +923,7 @@ class ProblemMaker(QMainWindow):
 
             # 设置语言
             lang_map = {"python": "Python", "cpp": "C++", "java": "Java"}
-            self.lang_combo.setCurrentText(lang_map.get(self.current_problem.language, "Python"))
+            self.lang_combo.setCurrentText(lang_map.get(self.current_problem.language, "C++"))
 
             # 更新数据文件列表
             self.updateDataFileList()
@@ -841,40 +977,32 @@ class ProblemMaker(QMainWindow):
         index = self.problem_list.row(item)
         self.loadProblem(index)
         self.title_edit.setText(self.problems[index].title)
-        # print(self.problems[index].title)
-
-
 
     def onTitleChanged(self, text=None):
         """标题变更事件"""
         if self.current_problem:
-            print(self.current_problem.full_title)
-
-            old_full_title = self.current_problem.full_title
             new_id = self.id_edit.text().strip()
-            print('new_id',new_id)
             new_title = self.title_edit.text().strip()
-            #
-            # if new_id==self.current_problem.id:
-            #     self.current_problem.id = new_id
-            #     self.current_problem.title = new_title
 
-            # self.current_problem.full_title = f"{self.current_problem.id}_{self.current_problem.title}"
-            print('test',self.current_problem.full_title)
+            if new_id:
+                self.current_problem.id = new_id
+            if new_title:
+                self.current_problem.title = new_title
+
+            self.current_problem.full_title = f"{self.current_problem.id}_{self.current_problem.title}"
+
             # 更新列表项
-            # self.title_edit.setText(self.current_problem.full_title)
             if self.current_problem_index >= 0:
                 item = self.problem_list.item(self.current_problem_index)
                 if item:
                     display_text = f"{self.current_problem.id}. {self.current_problem.title}"
-                    print('display_text', display_text)
                     item.setText(display_text)
 
     def onLanguageChanged(self, text):
         """语言变更事件"""
         if self.current_problem:
             lang_map = {"Python": "python", "C++": "cpp", "Java": "java"}
-            self.current_problem.language = lang_map.get(text, "python")
+            self.current_problem.language = lang_map.get(text, "cpp")
 
     def onDescriptionChanged(self):
         """题面变更事件"""
@@ -918,7 +1046,7 @@ class ProblemMaker(QMainWindow):
                 pass
 
         new_id = str(max_id + 1)
-        new_title = self.title_edit.text().strip()
+        new_title = self.title_edit.text().strip() or "新题目"
 
         # 创建题目目录
         dir_name = f"{new_id}_{new_title}"
@@ -1142,6 +1270,9 @@ class ProblemMaker(QMainWindow):
             QMessageBox.warning(self, "警告", "请输入有效的整数")
             return
 
+        # 获取数据规模
+        data_scale = self.data_scale_spin.value()
+
         # 确认是否覆盖
         existing_files = []
         for i in range(1, count + 1):
@@ -1162,6 +1293,7 @@ class ProblemMaker(QMainWindow):
         self.output_text.append("=" * 50)
         self.output_text.append(f"开始使用外部生成器生成 {count} 个输入文件...")
         self.output_text.append(f"生成器文件: {self.current_problem.generator_path}")
+        self.output_text.append(f"数据规模: {data_scale}")
 
         # 创建进度对话框
         self.progress = QProgressDialog("正在生成数据...", "取消", 0, 100, self)
@@ -1170,7 +1302,8 @@ class ProblemMaker(QMainWindow):
         # 创建生成器线程
         self.generator = DataGenerator(
             self.current_problem.generator_path,
-            count
+            count,
+            data_scale
         )
         self.generator.output_dir = self.current_problem.problem_path
         self.generator.progress_signal.connect(self.progress.setValue)
@@ -1195,14 +1328,14 @@ class ProblemMaker(QMainWindow):
         self.updateDataFileList()
         self.status_label.setText("数据生成完成")
 
-    def testSelectedData(self):
-        """测试选中的数据文件"""
+    def testSelectedWithExe(self):
+        """使用编译好的exe测试选中的数据文件"""
         if not self.current_problem:
             QMessageBox.warning(self, "警告", "请先选择一个题目")
             return
 
-        if not self.current_problem.solution_code:
-            QMessageBox.warning(self, "警告", "没有正解代码")
+        if not self.current_problem.compiled_exe_path or not os.path.exists(self.current_problem.compiled_exe_path):
+            QMessageBox.warning(self, "警告", "请先编译正解代码")
             return
 
         selected_items = self.data_list_widget.selectedItems()
@@ -1210,68 +1343,39 @@ class ProblemMaker(QMainWindow):
             QMessageBox.warning(self, "警告", "请先选择要测试的数据文件")
             return
 
-        self.output_text.append("=" * 50)
-        self.output_text.append("开始测试选中的数据...")
-
+        # 收集选中的输入文件
+        input_files = []
         for item in selected_items:
             in_file_path = item.data(Qt.UserRole)
-            file_name = os.path.basename(in_file_path)
+            input_files.append(in_file_path)
 
-            self.output_text.append(f"\n测试文件: {file_name}")
+        self.output_text.append("=" * 50)
+        self.output_text.append(f"开始使用exe测试 {len(input_files)} 个文件...")
 
-            # 读取输入数据
-            with open(in_file_path, 'r', encoding='utf-8') as f:
-                input_data = f.read()
+        # 创建进度对话框
+        self.progress = QProgressDialog("正在测试...", "取消", 0, 100, self)
+        self.progress.setWindowModality(Qt.WindowModal)
 
-            # 创建临时运行器
-            runner = CodeRunner(
-                self.current_problem.solution_code,
-                input_data,
-                self.current_problem.language
-            )
+        # 创建测试线程
+        self.tester = DataTester(
+            self.current_problem.compiled_exe_path,
+            input_files,
+            self.current_problem.problem_path
+        )
+        self.tester.progress_signal.connect(self.progress.setValue)
+        self.tester.message_signal.connect(self.onTesterMessage)
+        self.tester.error_signal.connect(self.onTesterError)
+        self.tester.finished_signal.connect(self.onTesterFinished)
+        self.tester.start()
 
-            # 使用临时列表收集输出
-            output_data = []
-            error_data = []
-
-            def collect_output(text):
-                output_data.append(text)
-
-            def collect_error(text):
-                error_data.append(text)
-
-            runner.output_signal.connect(collect_output)
-            runner.error_signal.connect(collect_error)
-
-            # 运行
-            runner.run()
-            runner.wait()  # 等待完成
-
-            if error_data:
-                self.output_text.append(f"运行错误: {error_data[0][:100]}")
-                continue
-
-            if output_data:
-                output_text = output_data[0]
-
-                # 保存输出文件
-                out_file_path = in_file_path.replace('.in', '.out')
-                with open(out_file_path, 'w', encoding='utf-8') as f:
-                    f.write(output_text)
-
-                self.output_text.append(f"输出已保存到: {os.path.basename(out_file_path)}")
-
-        self.output_text.append("\n测试完成")
-        self.updateDataFileList()
-
-    def batchTest(self):
-        """批量测试所有数据文件"""
+    def batchTestWithExe(self):
+        """使用编译好的exe批量测试所有数据文件"""
         if not self.current_problem:
             QMessageBox.warning(self, "警告", "请先选择一个题目")
             return
 
-        if not self.current_problem.solution_code:
-            QMessageBox.warning(self, "警告", "没有正解代码")
+        if not self.current_problem.compiled_exe_path or not os.path.exists(self.current_problem.compiled_exe_path):
+            QMessageBox.warning(self, "警告", "请先编译正解代码")
             return
 
         # 获取所有 .in 文件
@@ -1292,61 +1396,39 @@ class ProblemMaker(QMainWindow):
         in_files.sort(key=extract_number)
 
         self.output_text.append("=" * 50)
-        self.output_text.append(f"开始批量测试 {len(in_files)} 个文件...")
+        self.output_text.append(f"开始使用exe批量测试 {len(in_files)} 个文件...")
 
         # 创建进度对话框
-        self.progress = QProgressDialog("正在批量测试...", "取消", 0, len(in_files), self)
+        self.progress = QProgressDialog("正在批量测试...", "取消", 0, 100, self)
         self.progress.setWindowModality(Qt.WindowModal)
 
-        for i, in_file_path in enumerate(in_files):
-            if self.progress.wasCanceled():
-                break
+        # 创建测试线程
+        self.tester = DataTester(
+            self.current_problem.compiled_exe_path,
+            in_files,
+            self.current_problem.problem_path
+        )
+        self.tester.progress_signal.connect(self.progress.setValue)
+        self.tester.message_signal.connect(self.onTesterMessage)
+        self.tester.error_signal.connect(self.onTesterError)
+        self.tester.finished_signal.connect(self.onTesterFinished)
+        self.tester.start()
 
-            file_name = os.path.basename(in_file_path)
-            self.progress.setLabelText(f"正在测试: {file_name}")
+    def onTesterMessage(self, message):
+        """处理测试器消息"""
+        self.output_text.append(message)
 
-            # 读取输入数据
-            with open(in_file_path, 'r', encoding='utf-8') as f:
-                input_data = f.read()
+    def onTesterError(self, message):
+        """处理测试器错误"""
+        self.output_text.append(f"【错误】{message}")
+        QMessageBox.warning(self, "测试错误", message)
 
-            # 创建临时运行器
-            runner = CodeRunner(
-                self.current_problem.solution_code,
-                input_data,
-                self.current_problem.language
-            )
-
-            # 使用临时列表收集输出
-            output_data = []
-            error_data = []
-
-            def collect_output(text):
-                output_data.append(text)
-
-            def collect_error(text):
-                error_data.append(text)
-
-            runner.output_signal.connect(collect_output)
-            runner.error_signal.connect(collect_error)
-
-            # 运行
-            runner.run()
-            runner.wait()  # 等待完成
-
-            if error_data:
-                self.output_text.append(f"{file_name}: 运行错误 - {error_data[0][:50]}")
-            elif output_data:
-                # 保存输出文件
-                out_file_path = in_file_path.replace('.in', '.out')
-                with open(out_file_path, 'w', encoding='utf-8') as f:
-                    f.write(output_data[0])
-
-            self.progress.setValue(i + 1)
-
+    def onTesterFinished(self):
+        """测试器完成"""
         self.progress.close()
-        self.output_text.append("\n批量测试完成")
+        self.output_text.append("测试完成")
         self.updateDataFileList()
-        self.status_label.setText("批量测试完成")
+        self.status_label.setText("测试完成")
 
     def clearOutputFiles(self):
         """清除所有输出文件"""
@@ -1460,9 +1542,13 @@ class ProblemMaker(QMainWindow):
         generator_info = QLabel(
             f"生成器文件: {os.path.basename(self.current_problem.generator_path) if self.current_problem.generator_path else '未选择'}")
 
+        exe_info = QLabel(
+            f"编译状态: {'已编译' if self.current_problem.compiled_exe_path and os.path.exists(self.current_problem.compiled_exe_path) else '未编译'}")
+
         code_layout.addWidget(solution_label)
         code_layout.addWidget(solution_text)
         code_layout.addWidget(generator_info)
+        code_layout.addWidget(exe_info)
 
         preview_tabs.addTab(code_widget, "代码")
 
@@ -1480,15 +1566,16 @@ class ProblemMaker(QMainWindow):
         QMessageBox.about(
             self, "关于",
             "算法题目制作软件\n\n"
-            "版本：3.0\n\n"
+            "版本：4.0\n\n"
             "功能：\n"
             "- 从固定路径加载题目（格式：数字_题目名）\n"
             "- 创建和管理算法题目\n"
             "- 编辑题面、输入、输出和样例信息\n"
             "- 支持正解代码（Python/C++/Java）\n"
             "- 支持外部数据生成器文件\n"
-            "- 创建输入文件（通过生成器）\n"
-            "- 测试并生成输出文件\n"
+            "- 创建输入文件（通过生成器，可设置数据规模）\n"
+            "- 编译C++代码为exe文件\n"
+            "- 通过exe文件批量生成输出文件\n"
             "- 批量测试功能\n\n"
             f"当前题目路径：{self.problems_base_path}\n\n"
             "使用PyQt5开发"
@@ -1497,9 +1584,6 @@ class ProblemMaker(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-
-    # 设置应用程序图标（如果有）
-    # app.setWindowIcon(QIcon("icon.png"))
 
     window = ProblemMaker()
     window.show()
