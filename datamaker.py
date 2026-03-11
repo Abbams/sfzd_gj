@@ -2,14 +2,17 @@
 # -*- coding: utf-8 -*-
 
 import sys
-import random
+from random import *
 
 data_scale=[10,10,100,500,1000,5000]
 def make_datamaker(data_id):
     if data_id<len(data_scale):
-        n=data_scale[data_id]
+        lenn=data_scale[data_id]
     else:
-        n=data_scale[-1]
+        lenn=data_scale[-1]
+    n=randint(1,lenn)
+    m=n//2+randint(-1,1)
+    print(n,m)
 
 
 
