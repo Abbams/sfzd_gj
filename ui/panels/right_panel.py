@@ -45,10 +45,13 @@ class RightPanel(QWidget):
         delete_btn.clicked.connect(self.parent.deleteProblem)
         refresh_btn = QPushButton("刷新")
         refresh_btn.clicked.connect(self.parent.loadAllProblems)
+        airewrite_btn = QPushButton("ai重写")
+        airewrite_btn.clicked.connect(self.parent.airewrite)
 
         buttons_layout.addWidget(add_btn)
         buttons_layout.addWidget(delete_btn)
         buttons_layout.addWidget(refresh_btn)
+        buttons_layout.addWidget(airewrite_btn)
 
         layout.addLayout(buttons_layout)
 

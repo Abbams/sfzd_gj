@@ -4,10 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d9705580-c81a-4e47-8068-c3b7eb441af3" name="更改" comment="重构代码框架，方便后续更新">
-      <change afterPath="$PROJECT_DIR$/ai/quest.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tool/push_abc_daily.py" afterDir="false" />
+    <list default="true" id="d9705580-c81a-4e47-8068-c3b7eb441af3" name="更改" comment="建立ai功能基础">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/main_window.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/main_window.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/panels/right_panel.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/panels/right_panel.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -79,7 +79,7 @@
       <recent name="C:\Users\39839\Desktop\tech_work\sfzd_gj" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.push_abc_daily">
+  <component name="RunManager" selected="Python.main">
     <configuration name="datamaker" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="sfzd_gj" />
       <option name="ENV_FILES" value="" />
@@ -236,7 +236,15 @@
       <option name="project" value="LOCAL" />
       <updated>1775044679640</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="建立ai功能基础">
+      <option name="closed" value="true" />
+      <created>1775310079714</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1775310079714</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -277,6 +285,7 @@
     <MESSAGE value="添加数据一键打包功能" />
     <MESSAGE value="添加正解代码模板" />
     <MESSAGE value="重构代码框架，方便后续更新" />
-    <option name="LAST_COMMIT_MESSAGE" value="重构代码框架，方便后续更新" />
+    <MESSAGE value="建立ai功能基础" />
+    <option name="LAST_COMMIT_MESSAGE" value="建立ai功能基础" />
   </component>
 </project>

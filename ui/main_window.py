@@ -552,7 +552,7 @@ class ProblemMaker(QMainWindow):
             return
 
         try:
-            zip_path = problem_utils.pack_data_files(self.current_problem, self.problems_base_path)
+            zip_path = problem_utils.pack_data_files(self.current_problem, self.current_problem.problem_path)
 
             self.left_panel.appendOutput("=" * 50)
             self.left_panel.appendOutput(f"打包成功！")
@@ -599,7 +599,8 @@ class ProblemMaker(QMainWindow):
         from ui.preview_dialog import PreviewDialog
         dialog = PreviewDialog(self.current_problem, self)
         dialog.show()
-
+    def airewrite(self):
+        pass
     def about(self):
         """关于对话框"""
         QMessageBox.about(
