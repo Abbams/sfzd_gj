@@ -10,6 +10,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
 
+from ai.quest import ai_rewrite
 from models.problem import Problem
 from threads.code_runner import CodeRunner
 from threads.data_generator import DataGenerator
@@ -600,7 +601,10 @@ class ProblemMaker(QMainWindow):
         dialog = PreviewDialog(self.current_problem, self)
         dialog.show()
     def airewrite(self):
-        pass
+        ai_rewrite(self.current_problem)
+        self.saveProblem()
+        self.loadAllProblems()
+
     def about(self):
         """关于对话框"""
         QMessageBox.about(

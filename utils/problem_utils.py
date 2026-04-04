@@ -76,6 +76,7 @@ def load_problem_content(problem):
 def save_problem(problem, problems_base_path):
     """保存题目"""
     # 确保目录名与编号和标题一致
+    # print(problems_base_path)
     expected_dir_name = f"{problem.id}_{problem.title}"
     current_dir_name = os.path.basename(problem.problem_path)
 

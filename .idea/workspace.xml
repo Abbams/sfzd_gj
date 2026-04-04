@@ -4,10 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d9705580-c81a-4e47-8068-c3b7eb441af3" name="更改" comment="建立ai功能基础">
+    <list default="true" id="d9705580-c81a-4e47-8068-c3b7eb441af3" name="更改" comment="部分优化&#10;1.数据压缩包保存路径优化&#10;2.新增ai优化按钮">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai/quest.py" beforeDir="false" afterPath="$PROJECT_DIR$/ai/quest.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/datamaker.py" beforeDir="false" afterPath="$PROJECT_DIR$/datamaker.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ui/main_window.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/main_window.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ui/panels/right_panel.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/panels/right_panel.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/problem_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/problem_utils.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -171,8 +173,8 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.push_abc_daily" />
         <item itemvalue="Python.quest" />
+        <item itemvalue="Python.push_abc_daily" />
         <item itemvalue="Python.datamaker" />
       </list>
     </recent_temporary>
@@ -244,7 +246,15 @@
       <option name="project" value="LOCAL" />
       <updated>1775310079714</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="部分优化&#10;1.数据压缩包保存路径优化&#10;2.新增ai优化按钮">
+      <option name="closed" value="true" />
+      <created>1775311804141</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1775311804141</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -286,6 +296,7 @@
     <MESSAGE value="添加正解代码模板" />
     <MESSAGE value="重构代码框架，方便后续更新" />
     <MESSAGE value="建立ai功能基础" />
-    <option name="LAST_COMMIT_MESSAGE" value="建立ai功能基础" />
+    <MESSAGE value="部分优化&#10;1.数据压缩包保存路径优化&#10;2.新增ai优化按钮" />
+    <option name="LAST_COMMIT_MESSAGE" value="部分优化&#10;1.数据压缩包保存路径优化&#10;2.新增ai优化按钮" />
   </component>
 </project>

@@ -1,8 +1,9 @@
 import requests
 import json
 from typing import Optional, Dict, Any
-
-
+from  models.problem import Problem
+base_model="qwen3-coder:30b"
+base_model_url="http://localhost:11434"
 class OllamaClient:
     """
     本地 Ollama 模型调用客户端（一次问答，无历史）
@@ -10,9 +11,20 @@ class OllamaClient:
 
     def __init__(
         self,
-        model: str = "qwen3-coder:30b",
-        system_prompt: Optional[str] = None,
-        base_url: str = "http://localhost:11434",
+        model: str = base_model,
+        system_prompt: Optional[str] = """你是一个算法出题助手，工作是帮我补全优化题目，只以 JSON 格式回答，格式如下{  "id": "",
+  "title": "",
+  "description": "",
+  "input_description": "",
+  "output_description": "",
+  "sample_input": "",
+  "sample_output": "",
+  "solution_code": "#include<bits/stdc++.h>\nusing namespace std;\nint main()\n{\n    return 0;\n}",
+  "generator_path": "datamaker.py",
+  "language": "c++",
+  "data_files": []
+}""",
+        base_url: str = base_model_url,
         **kwargs
     ):
         """
@@ -68,27 +80,32 @@ class OllamaClient:
         except Exception as e:
             return f"[未知错误] {e}"
 
+def ai_rewrite(problem: Problem):
+    client = OllamaClient()
+    response_text = client.query(problem.description)
 
-# 使用示例
-if __name__ == "__main__":
-    # 创建客户端，设定系统提示要求 JSON 格式输出
-    client = OllamaClient(
+    # 1. 清洗返回文本，提取 JSON 部分（去除可能的 markdown 代码块）
+    cleaned = response_text.strip()
+    if cleaned.startswith("```json"):
+        cleaned = cleaned[7:]
+    elif cleaned.startswith("```"):
+        cleaned = cleaned[3:]
+    if cleaned.endswith("```"):
+        cleaned = cleaned[:-3]
+    cleaned = cleaned.strip()
 
-        system_prompt="""你是一个算法出题助手，工作是帮我补全优化题目，只以 JSON 格式回答，格式如下{  "id": "",
-  "title": "",
-  "description": "",
-  "input_description": "",
-  "output_description": "",
-  "sample_input": "",
-  "sample_output": "",
-  "solution_code": "#include<bits/stdc++.h>\nusing namespace std;\nint main()\n{\n    return 0;\n}",
-  "generator_path": "datamaker.py",
-  "language": "c++",
-  "data_files": []
-}"""
-    )
-
-    # 单次问答
-    answer = client.query("给你一个整数a,b,输出a+b的值，范围是1e6")
-    print("回答：")
-    print(answer)
+    # 2. 解析 JSON 并更新指定字段
+    try:
+        data = json.loads(cleaned)
+        if "description" in data:
+            problem.description = data["description"]
+        if "input_description" in data:
+            problem.input_description = data["input_description"]
+        if "output_description" in data:
+            problem.output_description = data["output_description"]
+        if "solution_code" in data:
+            problem.solution_code = data["solution_code"]
+        print("✅ 题目描述、输入说明、输出说明已更新")
+    except json.JSONDecodeError as e:
+        print(f"❌ JSON 解析失败: {e}")
+        print("原始返回内容:", response_text)
