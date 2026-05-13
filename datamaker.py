@@ -2,31 +2,25 @@
 # -*- coding: utf-8 -*-
 import random
 import sys
-from random import *
 from sfzd_data_maker import *
+# a_z =['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z']
+# A_Z= ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z']
 
-data_scale=[10,10,100,500,1000,5000,10000,200000]
-fixed_data=[0,[1,10],#1
-            [2,10],#2
-            [3,10],#3
-            [10,10],#4
-            [10,11],#5
-            [10,13],#6
-            [100,1000],#7
-            [1,10000],#8
-            [1,123],#9
-            [123,1220]]#10
+data_scale=[10,50,100,1000,10000,100000,500000,500000]
+fixed_data=[0]#10
 def make_datamaker(data_id):
     # print(fixed_data[data_id][0],fixed_data[data_id][1])
-    # return
-
-    if data_id<len(data_scale):
-        lenn=randint(data_scale[data_id-1],data_scale[data_id])
+    if data_id>=len(data_scale):
+        id=len(data_scale)-1
+        data_scale[id]-=random.randint(0,5)
     else:
-        lenn=data_scale[-1]
-    n=lenn
-    print(n)
-    pr(make_list(n,1,2e5))
+        id=data_id
+
+
+    # pr(make_list(data_scale[id],1,1000))
+
+    # print_edges(g)
+
 
 
 

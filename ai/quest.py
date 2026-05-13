@@ -4,6 +4,7 @@ from typing import Optional, Dict, Any
 from  models.problem import Problem
 base_model="qwen3-coder:30b"
 base_model_url="http://localhost:11434"
+
 class OllamaClient:
     """
     本地 Ollama 模型调用客户端（一次问答，无历史）
